@@ -1,34 +1,220 @@
 openapi: "3.0.0"
 info:
-  description: "API Description"
+  description: "Mit unserem Tool „Bundeshaushalt digital“ können Sie sich eine visualisierte Darstellung der Haushaltsdaten der letzten Jahre anzeigen lassen. Sie können sowohl Ausgaben und Einnahmen als auch Soll- und Ist-Werte abrufen und mithilfe des Jahresvergleichs gegenüberstellen. Zudem steht Ihnen eine Vielzahl weiterer Filteroptionen zur Verfügung.<br>"
   version: "1.0.0"
-  title: "Amtsname: API Name"
-
+  title: "Bundeshaushalt API"
+  contact:
+    name:  "anetz89"
+    email: "anetz@gmx.net"
+    url: "https://github.com/anetz89/bundeshaushalt-api"
 servers:
-  - url: "https://warnung.bund.de/api31"
-
+  - url: "https://bundeshaushalt.de"
 paths:
-  /dashboard/{AGS}.json:
+  /internalapi/budgetData:
     get:
-      summary: Name of endpoint
+      summary: "Anfrage von Budgetdaten des Bundeshaushalts."
+      description: "Haupteinstiegspunkt für alle Anfragen."
+      operationId: "budgetData"
+      tags:
+        - budgetData
       responses:
         '200':
             description: OK
             content:
               application/json:
                 schema:
-                  $ref: '#/components/schemas/Result'
+                  $ref: '#/components/schemas/BudgetDataResponse'
+
+        '400':
+            description: Bad Request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/BadRequest'
+        '404':
+            description: Not Found
       parameters:
-        - in: path
+        - in: query
+          name: year
+          description: "Haushaltsjahr"
+          example: 2021
           required: true
-          name: AGS
+          schema:
+            type: integer
+            enum:
+                - 2012
+                - 2013
+                - 2014
+                - 2015
+                - 2016
+                - 2017
+                - 2018
+                - 2019
+                - 2020
+                - 2021
+        - in: query
+          name: quota
+          description: "<b>target</b>: Sollwerte <i>(default)</i><br><b>actual</b>: Istwerte."
+          example: "actual"
+          required: false
           schema:
             type: string
-          description: Official area key - can be retrieved from [here](https://www.xrepository.de/api/xrepository/urn:de:bund:destatis:bevoelkerungsstatistik:schluessel:rs_2021-07-31/download/Regionalschl_ssel_2021-07-31.json). The last 7 digits have to be replaced with "0000000" because data is only offered on the area level [Kreisebene](https://de.wikipedia.org/wiki/Amtlicher_Gemeindeschl%C3%BCssel). 
-          example: "example-parameter"
-
-          
-components: 
-    schemas:
-      Result:
-        type: string
+            enum:
+                - "actual"
+                - "target"
+        - in: query
+          name: account
+          description: "<b>income</b>: Einnahmen. Die Einnahmen des Bundes setzen sich aus Steuern, sonstigen Einnahmen und Krediten zusammen.<br><b>expenses</b>: Ausgaben. Der größte Teil der Ausgaben wird für Sozialausgaben geleistet. Weitere große Ausgabeposten sind die Ausgabebereiche Verteidigung, Verkehrs- und Nachrichtenwesen und auch Bildung und Forschung."
+          example: "expenses"
+          required: true
+          schema:
+            type: string
+            enum:
+                - "expenses"
+                - "income"
+        - in: query
+          name: unit
+          description: "<b>single</b>: Einzelplan. <i>(default)</i><br><b>function</b>: Funktion.<br><b>group</b>: Gruppe."
+          example: "function"
+          required: false
+          schema:
+            type: string
+            enum:
+                - "single"
+                - "function"
+                - "group"
+        - in: query
+          name: id
+          description: "ID, die sich aus der Budgetnummer ergibt. Die Budgetnummer ist eine numerische Bezeichnung im Rahmen der Gliederung des Haushaltsplans, die sich aus der Einzelplan-, Kapitel und Titelnummer zusammensetzt. Gruppen-IDs starten mit 'G-', Funktions-IDs mit 'F-'"
+          example: "090168301"
+          required: false
+          schema:
+            type: string
+components:
+  schemas:
+    BadRequest:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          example: "2022-05-23T19:19:45.655+00:00"
+        status:
+          type: number
+          example: 400
+        error:
+          type: string
+          example: "Bad Request"
+        path:
+          type: string
+          example: "/api/budgetData"
+    BudgetDataResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+          description: "Metainformationen zur Anfrage"
+          properties:
+            account:
+              type: string
+              example: "expenses"
+            entity:
+              type: string
+              example: "Budget"
+            levelCur:
+              type: integer
+              example: 0
+            levelMax:
+              type: integer
+              example: 3
+            modifyDate:
+              type: string
+              example: "04/07/2022"
+            quota:
+              type: string
+              example: "target"
+            timestamp:
+              type: integer
+              example: 1649337498000
+            unit:
+              type: string
+              example: "single"
+            year:
+              type: integer
+              example: 2021
+        details:
+          $ref: '#/components/schemas/BudgetElement'
+        children:
+          type: array
+          description: "Liste aller Kindelemente zum angefragten Element."
+          items:
+            $ref: '#/components/schemas/BudgetElement'
+        parents:
+          type: array
+          description: "Liste aller Elternelemente zum angefragten Element, inklusive aller Geschwister und Elterngeschwistern usw."
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/LabeledElement'
+        related:
+          type: object
+          properties:
+            agency:
+              type: array
+              description: "Agenturen die zum angefragten Element Bezug haben."
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabeledElement'
+            function:
+              type: array
+              description: "Funktionen die zum angefragten Element Bezug haben."
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabeledElement'
+            group:
+              type: array
+              description: "Gruppen die zum angefragten Element Bezug haben."
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabeledElement'
+    LabeledElement:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "ID, die sich aus der Budgetnummer generiert. Diese ID kann für konkrete Anfragen verwendet werden (query parameter 'id'). ID ist nur in den Children-Objekten gefüllt."
+          example: "12"
+        label:
+          type: string
+          description: "Beschreibungstext für das Detailobjekt"
+          example: "Bundesministerium für Verkehr und digitale Infrastruktur"
+    BudgetElement:
+      type: object
+      properties:
+        budgetNumber:
+          type: string
+          description: "Budgetnummer für das Detailobjekt. Die Budgetnummer ist eine numerische Bezeichnung im Rahmen der Gliederung des Haushaltsplans, die sich aus der Einzelplan-, Kapitel und Titelnummer zusammensetzt"
+          example: "____ ___ __ - ___"
+        id:
+          type: string
+          description: "ID, die sich aus der Budgetnummer generiert. Diese ID kann für konkrete Anfragen verwendet werden (query parameter 'id'). ID ist nur in den Children-Objekten gefüllt."
+          example: "11"
+        label:
+          type: string
+          description: "Beschreibungstext für das Detailobjekt"
+          example: "Sollwerte des Haushaltsjahres 2021, inkl. 1. und 2. Nachtragshaushalt"
+        relativeToParentValue:
+          type: number
+          description: "Relativer Budgetwert zum Elternelement"
+          example: 5.070069604515528
+        relativeValue:
+          type: number
+          description: "Relativer Budgetwert zum Gesamthaushalt des entsprechenden Jahres"
+          example: 0.20430178267357904
+        value:
+          type: number
+          description: "tatsächlicher Budgetwert in €"
+          example: 729605430.65
+      required: ["budgetNumber", "label", "relativeToParentValue", "relativeValue", "value"]
