@@ -8,3 +8,11 @@ API Beschreibung von [Bundeshaushalt Digital](https://bundeshaushalt.de/DE/Bunde
 
 Copied from [Anetz89](https://github.com/anetz89/)s repository [here](https://github.com/anetz89/bundeshaushalt-api) 
 
+### Beispiel:
+
+```bash
+budgetData=$(curl -m 60 \
+'https://bundeshaushalt.de/internalapi/budgetData?year=2021&account=expenses')
+```
+
+
